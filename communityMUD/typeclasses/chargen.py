@@ -111,6 +111,9 @@ def node_email(caller, raw_text, **kwargs):
             character = caller.db._last_puppet
             if character:
                 character.ndb._chargen_email = ""
+                # Set empty email on account as well
+                caller.email = ""
+                caller.save()
                 
             return "node_race", {"email": ""}
             
@@ -121,11 +124,13 @@ def node_email(caller, raw_text, **kwargs):
             caller.msg("That doesn't look like a valid email address. Try again or press enter to skip.")
             return None
             
-        # Save email to character for persistence
+        # Save email to both character and account
         character = caller.db._last_puppet
         if character:
             character.ndb._chargen_email = email
-
+            # Set email on account
+            caller.email = email
+            caller.save()
             
         return "node_race", {"email": email}
     
