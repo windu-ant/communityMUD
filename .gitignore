@@ -32,7 +32,7 @@ server/conf/secret_settings.py
 server/logs/*.log.*
 server/.static/*
 server/.media/*
-/home/deios/famine/communityMUD/communityMUD/server/.static/
+/home/deios/famine/communityMUD/communityMUD/server/.static/*
 /home/deios/famine/communityMUD/communityMUD/server/.media/*
 
 # Installer logs
