@@ -28,12 +28,10 @@ __pycache__
 
 # Installation-specific.
 # For group efforts, comment out some or all of these.
-server/conf/secret_settings.py
-server/logs/*.log.*
-server/.static/*
-server/.media/*
-/home/deios/famine/communityMUD/communityMUD/server/.static/*
-/home/deios/famine/communityMUD/communityMUD/server/.media/*
+**/server/conf/secret_settings.py
+**/server/logs/*.log.*
+**/.static/**
+**/.media/**
 
 # Installer logs
 pip-log.txt
