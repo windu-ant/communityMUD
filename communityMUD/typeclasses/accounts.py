@@ -24,6 +24,12 @@ several more options for customizing the Guest account system.
 
 from evennia.accounts.accounts import DefaultAccount, DefaultGuest
 
+# Lazy import to avoid circular imports
+def get_start_chargen():
+    """Lazy import of start_chargen to avoid circular imports."""
+    from typeclasses.chargen import start_chargen
+    return start_chargen
+
 
 class Account(DefaultAccount):
     """
@@ -167,12 +173,12 @@ class Account(DefaultAccount):
         # Check if this is a brand new account (no characters)
         if not self.db._playable_characters:
             # Start character generation
-            from typeclasses.chargen import start_chargen
+            start_chargen = get_start_chargen()
             self.msg("\nWelcome to the game! Let's create your first character.")
             start_chargen(self)
         # If the account has a character but hasn't completed chargen, resume it
         elif self.db._last_puppet and not self.db._last_puppet.db.chargen_complete:
-            from typeclasses.chargen import start_chargen
+            start_chargen = get_start_chargen()
             self.msg("\nLet's complete your character creation.")
             start_chargen(self)
 

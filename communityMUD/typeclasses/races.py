@@ -17,12 +17,14 @@ class RaceScript(DefaultScript):
     This script attaches to a character to define their race
     and provide race-specific functionality.
     """
+    # Class attribute for script key
+    script_key = "race_script"
     
     def at_script_creation(self):
         """
         Setup the script
         """
-        self.key = "race_script"
+        self.key = self.script_key
         self.desc = "Stores race information"
         self.persistent = True
         
@@ -57,6 +59,8 @@ class HumanRace(RaceScript):
     """
     Human race implementation.
     """
+    # Set the script key as class attribute
+    script_key = "human_race"
     
     def at_script_creation(self):
         """
@@ -64,7 +68,7 @@ class HumanRace(RaceScript):
         """
         super().at_script_creation()
         
-        self.key = "human_race"
+        # Key is now set from the class attribute in the parent class
         self.db.name = "Human"
         self.db.desc = "Humans are the most common race, known for their adaptability and versatility."
         
@@ -94,29 +98,32 @@ def apply_race(character, race_name):
     Apply a race to a character.
     
     Args:
-        character (Character): Character to apply race to
-        race_name (str): Name of the race to apply
+        character (Character): The character to apply the race to
+        race_name (str): The name of the race to apply
         
     Returns:
-        bool: Success or failure
+        str or True: True if successful, error message string if failed
     """
-    
     race_map = {
-        "human": HumanRace,
-        "Human": HumanRace,  # Add capitalized version for direct matching
+        "human": HumanRace,  # Case-insensitive matching via race_name.lower()
     }
     
-    if race_name not in race_map:
-        character.msg(f"ERROR: Unknown race '{race_name}'")
-        return False
+    # Get the race class from the mapping
+    race_class = race_map.get(race_name.lower())
+    
+    if not race_class:
+        available_races = ", ".join(race_map.keys())
+        return f"Race '{race_name}' not found. Available races: {available_races}"
         
-    # Remove any existing race scripts
+    # Get all race script keys directly from class attributes
+    race_keys = [rc.script_key for rc in race_map.values()]
+    
+    # Remove only scripts that exactly match our known race scripts
     for script in character.scripts.all():
-        if script.key.endswith("_race"):
+        if script.key in race_keys:
             script.delete()
     
     # Create new race script using the correct creation function
-    race_class = race_map[race_name]
     race_script = create_script(race_class, obj=character)
     
     # Apply race attributes

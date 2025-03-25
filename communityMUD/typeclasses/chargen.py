@@ -13,8 +13,11 @@ The workflow is:
 """
 
 import re
+import traceback
+from django.conf import settings
 from evennia import EvMenu
 from evennia.utils import dedent
+from evennia.objects.models import ObjectDB
 from typeclasses.races import apply_race, get_available_races
 from typeclasses.classes import apply_class, get_available_classes
 
@@ -61,7 +64,7 @@ def node_name(caller, raw_text, **kwargs):
             return None
             
         if len(name) > 16:
-            caller.msg("Name must be less than 16 characters long.")
+            caller.msg("Name can be up to 16 characters long.")
             return None
             
         # Check if name contains only letters
@@ -69,9 +72,27 @@ def node_name(caller, raw_text, **kwargs):
             caller.msg("Name can only contain letters (no numbers or punctuation).")
             return None
             
-        # Save name to character for persistence
+        # Get the current character
         character = caller.db._last_puppet
+        
+        # Check if name is already taken (case-insensitive), but exclude the current character
         if character:
+            # Check for characters with this name that aren't the current one
+            existing = ObjectDB.objects.filter(db_key__iexact=name).exclude(id=character.id)
+            if existing:
+                caller.msg(f"The name '{name}' is already taken. Please choose another name.")
+                return None
+        else:
+            # If no character exists yet, check all objects
+            existing = ObjectDB.objects.filter(db_key__iexact=name)
+            if existing:
+                caller.msg(f"The name '{name}' is already taken. Please choose another name.")
+                return None
+            
+        # Save name to character for persistence with proper capitalization
+        if character:
+            # Capitalize first letter, lowercase the rest
+            name = name.capitalize()
             character.key = name
             character.ndb._chargen_name = name
             
@@ -84,7 +105,7 @@ def node_name(caller, raw_text, **kwargs):
     The name should be:
     - 2-16 characters long
     - Only contain letters (no numbers or punctuation)
-    - Be unique in the game
+    - Be unique in the game (case-insensitive)
     
     Current name: {current_name}
     
@@ -388,7 +409,7 @@ def node_confirm(caller, raw_text, **kwargs):
             return "node_apply_character", kwargs
         elif choice in ("n", "no"):
             caller.msg("Let's start over.")
-            return "node_email", {}
+            return "node_name", {}
         else:
             caller.msg("Please enter 'y' or 'n'.")
             return None
@@ -488,6 +509,54 @@ def node_apply_character(caller, raw_text, **kwargs):
     return text, None
 
 
+def create_default_character(account):
+    """
+    Create a default character for an account with basic permissions
+    
+    Args:
+        account (Account): The account to create a character for
+        
+    Returns:
+        Object or None: The created character or None if creation failed
+    """
+    # Get character typeclass
+    character_typeclass = settings.BASE_CHARACTER_TYPECLASS
+    
+    # Create a new character with the same name as the account
+    try:
+        # Use proper permission strings instead of raw settings
+        default_perms = ["Accounts"]
+        default_locks = "edit:id(%s) or perm(Admin);call:id(%s) or perm(Admin);delete:id(%s) or perm(Admin)" % (account.id, account.id, account.id)
+        
+        character = ObjectDB.objects.create_object(
+            typeclass=character_typeclass, 
+            key=account.key,  # This will be the default name until changed
+            location=None,  # Will be set by the create_character hook
+            home=None,
+            permissions=default_perms,
+            locks=default_locks,
+            tags=[("chargen", "chargen")],
+        )
+        
+        # Link the account to the character
+        character.db.account = account
+        account.db._last_puppet = character
+        
+        # Also add to account's playable characters
+        if account.db._playable_characters is None:
+            account.db._playable_characters = []
+        
+        if character not in account.db._playable_characters:
+            account.db._playable_characters.append(character)
+            
+        return character
+            
+    except Exception as e:
+        account.msg(f"Error creating character: {e}")
+        traceback.print_exc()
+        return None
+
+
 def start_chargen(account):
     """
     Start the character generation process for a given account
@@ -500,43 +569,8 @@ def start_chargen(account):
     
     if not character:
         # Create a character if one doesn't exist
-        from evennia.objects.models import ObjectDB
-        from django.conf import settings
-        
-        # Get character typeclass
-        character_typeclass = settings.BASE_CHARACTER_TYPECLASS
-        
-        # Create a new character with the same name as the account
-        try:
-            # Use proper permission strings instead of raw settings
-            default_perms = ["Accounts"]
-            default_locks = "edit:id(%s) or perm(Admin);call:id(%s) or perm(Admin);delete:id(%s) or perm(Admin)" % (account.id, account.id, account.id)
-            
-            character = ObjectDB.objects.create_object(
-                typeclass=character_typeclass, 
-                key=account.key,  # This will be the default name until changed
-                location=None,  # Will be set by the create_character hook
-                home=None,
-                permissions=default_perms,
-                locks=default_locks,
-                tags=[("chargen", "chargen")],
-            )
-            
-            # Link the account to the character
-            character.db.account = account
-            account.db._last_puppet = character
-            
-            # Also add to account's playable characters
-            if account.db._playable_characters is None:
-                account.db._playable_characters = []
-            
-            if character not in account.db._playable_characters:
-                account.db._playable_characters.append(character)
-                
-        except Exception as e:
-            account.msg(f"Error creating character: {e}")
-            import traceback
-            traceback.print_exc()
+        character = create_default_character(account)
+        if not character:
             return
     
     # Check if character has already completed chargen

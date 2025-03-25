@@ -46,12 +46,24 @@ class CmdCharCreate(DefaultCmdCharCreate):
         )
 
         if errors:
-            self.msg(errors)
+            # Handle specific error cases
+            for error in errors:
+                if "maximum of" in error:
+                    self.msg(f"|rError:|n {error}")
+                elif "already exists" in error:
+                    self.msg(f"|rError:|n A character with the name '{key}' already exists.")
+                elif "invalid" in error.lower():
+                    self.msg(f"|rError:|n The name '{key}' is invalid. Names can only contain letters.")
+                else:
+                    self.msg(f"|rError:|n {error}")
+            return
+
         if not new_character:
+            self.msg("|rError:|n Character creation failed. Please try a different name or contact an administrator if the problem persists.")
             return
 
         self.msg(
-            f"Created new character {new_character.key}. Starting character generation..."
+            f"|gSuccess:|n Created new character {new_character.key}. Starting character generation..."
         )
         
         # Start character generation for this new character

@@ -17,12 +17,14 @@ class ClassScript(DefaultScript):
     This script attaches to a character to define their class
     and provide class-specific functionality.
     """
+    # Class attribute for script key
+    script_key = "class_script"
     
     def at_script_creation(self):
         """
         Setup the script
         """
-        self.key = "class_script"
+        self.key = self.script_key
         self.desc = "Stores character class information"
         self.persistent = True
         
@@ -61,6 +63,8 @@ class WarriorClass(ClassScript):
     """
     Warrior class implementation.
     """
+    # Set the script key as class attribute
+    script_key = "warrior_class"
     
     def at_script_creation(self):
         """
@@ -68,7 +72,7 @@ class WarriorClass(ClassScript):
         """
         super().at_script_creation()
         
-        self.key = "warrior_class"
+        # Key is now set from the class attribute in the parent class
         self.db.name = "Warrior"
         self.db.desc = "Warriors are skilled fighters who rely on strength and weapon mastery in combat."
         
@@ -100,6 +104,7 @@ def get_available_classes():
     Returns:
         list: List of class names
     """
+    # Feels like there should be a better way to do this
     return ["Warrior"]  # For now just warriors
     
 
@@ -108,29 +113,33 @@ def apply_class(character, class_name):
     Apply a class to a character.
     
     Args:
-        character (Character): Character to apply class to
-        class_name (str): Name of the class to apply
+        character (Character): The character to apply class to
+        class_name (str): The name of the class to apply
         
     Returns:
-        bool: Success or failure
+        str or True: True if successful, error message string if failed
     """
         
     class_map = {
-        "warrior": WarriorClass,
-        "Warrior": WarriorClass,  # Add capitalized version for direct matching
+        "warrior": WarriorClass,  # Case-insensitive matching via class_name.lower()
     }
     
-    if class_name not in class_map:
-        character.msg(f"ERROR: Unknown class '{class_name}'")
-        return False
+    # Get the class from the mapping
+    class_class = class_map.get(class_name.lower())
+    
+    if not class_class:
+        available_classes = ", ".join(class_map.keys())
+        return f"Class '{class_name}' not found. Available classes: {available_classes}"
         
-    # Remove any existing class scripts
+    # Get all class script keys directly from class attributes
+    class_keys = [cc.script_key for cc in class_map.values()]
+    
+    # Remove only scripts that exactly match our known class scripts
     for script in character.scripts.all():
-        if script.key.endswith("_class"):
+        if script.key in class_keys:
             script.delete()
     
-    # Create new class script using the correct creation function
-    class_class = class_map[class_name]
+    # Create new class script using creation function
     class_script = create_script(class_class, obj=character)
     
     # Apply class attributes

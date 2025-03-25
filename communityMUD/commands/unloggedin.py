@@ -12,6 +12,7 @@ import re
 from django.conf import settings
 from evennia.utils import class_from_module
 from evennia.commands.default.unloggedin import CmdUnconnectedCreate as DefaultCmdUnconnectedCreate
+from utils.resources import get_text_resource
 
 class CmdUnconnectedCreate(DefaultCmdUnconnectedCreate):
     """
@@ -76,48 +77,21 @@ class CmdUnconnectedCreate(DefaultCmdUnconnectedCreate):
             session.msg("Aborted. If your user name contains spaces, surround it by quotes.")
             return
 
-        # Present Terms of Service and Code of Conduct
-        tos_text = """
-|y==============================================================|n
-|rTERMS OF SERVICE|n
-
-By creating an account, you agree to:
-
-1. Respect all users and staff
-2. Follow all game rules and policies
-3. Not exploit bugs or game mechanics
-4. Not engage in harassment or abuse
-5. Allow your account data to be stored
-
-This is a placeholder for the full Terms of Service, which will be 
-available later.
-
-|y==============================================================|n
-"""
-        coc_text = """
-|y==============================================================|n
-|rCODE OF CONDUCT|n
-
-As a player, you will:
-
-1. Be respectful of other players
-2. Use appropriate language
-3. Not engage in discrimination or harassment
-4. Respect the privacy of other players
-5. Follow staff instructions
-
-This is a placeholder for the full Code of Conduct, which will be 
-available later.
-
-|y==============================================================|n
-"""
+        # Load Terms of Service and Code of Conduct from text files
+        tos_text = get_text_resource("tos.txt")
+        coc_text = get_text_resource("coc.txt")
+        
+        # Display the texts
         session.msg(tos_text)
         session.msg(coc_text)
         
         # Ask for confirmation
         tos_answer = yield "Do you agree to the Terms of Service and Code of Conduct? (yes/no)"
         if tos_answer.lower() not in ("yes", "y"):
-            session.msg("You must agree to the Terms of Service and Code of Conduct to create an account.")
+            # Send a final message before disconnecting
+            session.msg("|rDisconnecting...|n")
+            # Use the sessionhandler to disconnect properly - Do we want to be this aggressive?
+            session.sessionhandler.disconnect(session, "You must agree to the Terms of Service and Code of Conduct to create an account.")
             return
 
         # everything's ok. Create the new player account.
@@ -136,3 +110,4 @@ available later.
             session.msg(string % (username, username))
         else:
             session.msg("|R%s|n" % "\n".join(errors)) 
+            session.msg("Please try to create an account again.")
